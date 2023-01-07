@@ -1,28 +1,19 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace WebSocketsNET
 {
-	public class Handler
+	public abstract class Handler
 	{
-		readonly Server server;
-
-		internal Handler(Server server)
-		{
-			this.server = server;
-		}
+		internal Server? server;
 
 
+		public abstract Task HandleAsync(string message);
 
 
-		public Handler AddSomething()
-		{
-			return this;
-		}
-
-
-
-		public Server Apply() => server;
+		public void LogInfo(string message) => server!.LogInfo(message);
+		public void LogError(string error) => server!.LogError(error);
 	}
 }

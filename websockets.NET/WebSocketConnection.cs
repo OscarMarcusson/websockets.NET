@@ -45,7 +45,7 @@ namespace WebSocketsNET
 				while (!cancellation.IsCancellationRequested)
 				{
 					var read = await stream.ReadAsync(bytes, cancellationToken);
-					if (read < 0)
+					if (read <= 0)
 					{
 						server.LogError($"Reached end of stream, killing connection for '{client.Client.RemoteEndPoint}'");
 						break;
@@ -111,8 +111,7 @@ namespace WebSocketsNET
 						decoded[i] = (byte)(messageBytes[offset + i] ^ masks[i % 4]);
 
 					string text = Encoding.UTF8.GetString(decoded);
-					server.LogInfo(text);
-					
+					await handler.HandleAsync(text);
 				}
 			}
 			catch(Exception e)

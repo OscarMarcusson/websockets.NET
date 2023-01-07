@@ -38,22 +38,26 @@ namespace WebSocketsNET
 			return this;
 		}
 
-		public Handler AddRootHandler()
+		public Server AddRootHandler<THandler>() where THandler : Handler, new()
 		{
-			LogInfo($"Added a root handler");
+			if (rootHandler != null)
+				throw new ArgumentException("A root handler already exists");
 
-			return rootHandler = new Handler(this);
+			LogInfo($"Using '{typeof(THandler).Name}' as the root handler");
+			rootHandler = new THandler() { server = this };
+			return this;
 		}
 
-		public Handler AddHandler(string url)
+		public Server AddHandler<THandler>(string url) where THandler : Handler, new()
 		{
 			url = url.Trim(' ', '\t', '\\', '/');
 			if (url.Length == 0)
 				throw new ArgumentException("Empty url");
 
 			LogInfo($"Added handler '{url}'");
-			// TODO::
-			return new Handler(this);
+			var handler = new THandler() { server = this };
+			// TODO:: 
+			return this;
 		}
 
 

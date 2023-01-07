@@ -1,10 +1,20 @@
 ﻿using WebSocketsNET;
 
-var server = new Server("localhost", 11311)
-				.AddRootHandler()
-					.AddSomething()
-					.Apply()
-				.Start()
-				;
+using var server = new Server("localhost", 11311)
+	.AddRootHandler<MessagePrinterHandler>()
+	.Start()
+	;
 
 Console.ReadLine();
+
+
+
+
+class MessagePrinterHandler : Handler
+{
+	public override Task HandleAsync(string message)
+	{
+		LogInfo(message);
+		return Task.CompletedTask;
+	}
+}
