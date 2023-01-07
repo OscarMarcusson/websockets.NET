@@ -12,7 +12,7 @@ Console.ReadLine();
 
 class MessagePrinterHandler : Handler
 {
-	public override Task HandleAsync(string message)
+	public override Task HandleAsync(WebSocketConnection _, string message)
 	{
 		LogInfo(message);
 		return Task.CompletedTask;

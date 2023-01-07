@@ -21,7 +21,7 @@ namespace WebSocketsNET
 		readonly CancellationTokenSource cancellation;
 		readonly CancellationToken cancellationToken;
 
-		public WebSocketConnection(Server server, Handler handler, TcpClient client, NetworkStream stream, StreamReader reader, StreamWriter writer)
+		internal WebSocketConnection(Server server, Handler handler, TcpClient client, NetworkStream stream, StreamReader reader, StreamWriter writer)
 		{
 			this.server = server;
 			this.handler = handler;
@@ -33,6 +33,8 @@ namespace WebSocketsNET
 
 			cancellation = new CancellationTokenSource();
 			cancellationToken = cancellation.Token;
+
+			handler.Connect(this);
 			readLoopTask = Task.Run(ReadLoopAsync);
 		}
 
@@ -61,7 +63,10 @@ namespace WebSocketsNET
 						break;
 					}
 
-					// int opcode = bytes[0] & 0b00001111; // 1: text message
+					int opcode = bytes[0] & 0b00001111; // 1: text message
+					if (opcode == 8) // End of stream
+						break;
+
 					ulong offset = 2;
 					ulong messageLength = (ulong)(bytes[1] & 0b01111111);
 
@@ -111,7 +116,7 @@ namespace WebSocketsNET
 						decoded[i] = (byte)(messageBytes[offset + i] ^ masks[i % 4]);
 
 					string text = Encoding.UTF8.GetString(decoded);
-					await handler.HandleAsync(text);
+					await handler.HandleAsync(this, text);
 				}
 			}
 			catch(Exception e)
@@ -136,6 +141,8 @@ namespace WebSocketsNET
 			reader.Dispose();
 			stream.Dispose();
 			client.Dispose();
+
+			handler.Disconnect(this);
 		}
 	}
 }

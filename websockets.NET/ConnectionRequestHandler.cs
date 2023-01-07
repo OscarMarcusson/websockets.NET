@@ -105,7 +105,7 @@ namespace WebSocketsNET
 				if (!webSocketVersionHeaderIsValid) throw new Exception("Expected a 'Sec-WebSocket-Version' header");
 				if (webSocketKey == null) throw new Exception("Expected a 'Sec-WebSocket-Key' header");
 
-				server.LogInfo($"'{client.Client.RemoteEndPoint}' requested {(url.Length == 0 ? "the root handler" : $"'{url}'")}");
+				// server.LogInfo($"'{client.Client.RemoteEndPoint}' requested {(url.Length == 0 ? "the root handler" : $"'{url}'")}");
 				
 				// Response
 				webSocketKey += "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"; // Magic string from RFC 6455

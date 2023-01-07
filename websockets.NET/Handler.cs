@@ -9,8 +9,10 @@ namespace WebSocketsNET
 	{
 		internal Server? server;
 
+		internal virtual void Connect(WebSocketConnection connection) { }
+		internal virtual void Disconnect(WebSocketConnection connection) { }
 
-		public abstract Task HandleAsync(string message);
+		public abstract Task HandleAsync(WebSocketConnection connection, string message);
 
 
 		public void LogInfo(string message) => server!.LogInfo(message);
