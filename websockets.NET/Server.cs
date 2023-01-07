@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Net.Sockets;
 using System.Net;
+using System.Threading.Tasks;
+using System.IO;
+using System.Text;
 
 namespace WebSocketsNET
 {
@@ -30,11 +33,22 @@ namespace WebSocketsNET
 			return this;
 		}
 
-		public Server AddHandler(string url)
+		public Handler AddRootHandler()
 		{
+			LogInfo($"Added a root handler");
+
+			return new Handler(this);
+		}
+
+		public Handler AddHandler(string url)
+		{
+			url = url.Trim(' ', '\t', '\\', '/');
+			if (url.Length == 0)
+				throw new ArgumentException("Empty url");
+
 			LogInfo($"Added handler '{url}'");
 			// TODO::
-			return this;
+			return new Handler(this);
 		}
 
 
@@ -42,14 +56,36 @@ namespace WebSocketsNET
 		{
 			tcpListener.Start();
 			LogInfo($"Started on '{tcpListener.LocalEndpoint}'");
+			Task.Run(AcceptConnectionsAsync);
 			return this;
 		}
 
 
+		async Task AcceptConnectionsAsync()
+		{
+			while (true)
+			{
+				var client = await tcpListener.AcceptTcpClientAsync();
+				var requestHandler = new ConnectionRequestHandler(this);
+				_ = Task.Run(async () => await requestHandler.HandleConnectionRequestAsync(client, AddConnection));
+			}
+		}
 
+		void AddConnection(WebSocketConnection connection, string url)
+		{
+			if(url.Length == 0)
+			{
+				// TODO:: Check that we have a root handler
+			}
+			else
+			{
+				// TODO:: Check some dictionary
+			}
 
+			connection.Dispose();
+		}
 
-		void LogInfo(string message)
+		internal void LogInfo(string message)
 		{
 			lock (logLocker)
 			{
@@ -60,7 +96,7 @@ namespace WebSocketsNET
 			}
 		}
 
-		void LogError(string error)
+		internal void LogError(string error)
 		{
 			lock (logLocker)
 			{
