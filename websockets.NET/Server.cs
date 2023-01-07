@@ -14,6 +14,11 @@ namespace WebSocketsNET
 		Action<string>? logInfo;
 		Action<string>? logError;
 
+		Handler? rootHandler;
+		public Handler? GetRootHandler => rootHandler;
+
+
+
 		public Server(string ip, int port) : this(
 				ip.Trim().Equals("localhost", StringComparison.OrdinalIgnoreCase)
 					? IPAddress.Loopback
@@ -37,7 +42,7 @@ namespace WebSocketsNET
 		{
 			LogInfo($"Added a root handler");
 
-			return new Handler(this);
+			return rootHandler = new Handler(this);
 		}
 
 		public Handler AddHandler(string url)
@@ -67,22 +72,8 @@ namespace WebSocketsNET
 			{
 				var client = await tcpListener.AcceptTcpClientAsync();
 				var requestHandler = new ConnectionRequestHandler(this);
-				_ = Task.Run(async () => await requestHandler.HandleConnectionRequestAsync(client, AddConnection));
+				_ = Task.Run(async () => await requestHandler.HandleConnectionRequestAsync(client));
 			}
-		}
-
-		void AddConnection(WebSocketConnection connection, string url)
-		{
-			if(url.Length == 0)
-			{
-				// TODO:: Check that we have a root handler
-			}
-			else
-			{
-				// TODO:: Check some dictionary
-			}
-
-			connection.Dispose();
 		}
 
 		internal void LogInfo(string message)

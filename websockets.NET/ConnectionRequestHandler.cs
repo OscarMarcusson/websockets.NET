@@ -14,7 +14,7 @@ namespace WebSocketsNET
 		public ConnectionRequestHandler(Server server) => this.server = server;
 
 
-		public async Task HandleConnectionRequestAsync(TcpClient client, Action<WebSocketConnection,string> onSuccessCallback)
+		public async Task HandleConnectionRequestAsync(TcpClient client)
 		{
 			var stream = client.GetStream();
 			var reader = new StreamReader(stream);
@@ -39,6 +39,19 @@ namespace WebSocketsNET
 					throw new Exception($"Invalid request HTTP version: {httpVersion}");
 
 				url = httpVersionIndex == 0 ? "" : url.Substring(0, httpVersionIndex).TrimEnd();
+
+				Handler? handler = null;
+				if(url.Length == 0)
+				{
+					handler = server.GetRootHandler;
+					if (handler == null)
+						throw new Exception($"Invalid request, '{client.Client.RemoteEndPoint}' tried calling a root handler but there is none registered");
+				}
+				else
+				{
+					throw new Exception($"Invalid request, '{client.Client.RemoteEndPoint}' tried calling a handler called '{url}'");
+				}
+
 
 				// Headers
 				var connectionHeaderIsValid = false;
@@ -111,7 +124,7 @@ namespace WebSocketsNET
 						"\r\n"));
 
 				await stream.WriteAsync(response, 0, response.Length);
-				onSuccessCallback(new WebSocketConnection(client, stream, reader, new StreamWriter(stream)), url);
+				var connection = new WebSocketConnection(server, handler!, client, stream, reader, new StreamWriter(stream));
 			}
 			catch (Exception e)
 			{

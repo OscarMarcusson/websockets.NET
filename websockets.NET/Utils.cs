@@ -19,7 +19,7 @@ namespace WebSocketsNET
 			Console.Write("] ");
 
 			Console.ForegroundColor = consoleColor;
-			Console.WriteLine(message.Replace("\n", "\n                       "));
+			Console.WriteLine(message.Replace("\n", "\n  "));
 		}
 	}
 }
