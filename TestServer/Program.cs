@@ -16,5 +16,6 @@ class MessagePrinterHandler : Handler
 	{
 		LogInfo(message);
 		await connection.Send($"Thanks for the message of {message.Length} characters!");
+		await Broadcast(connection, $"'{connection.GetEndPoint}' said: {message}");
 	}
 }

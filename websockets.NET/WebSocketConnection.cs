@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
@@ -20,6 +21,8 @@ namespace WebSocketsNET
 		readonly Task readLoopTask;
 		readonly CancellationTokenSource cancellation;
 		readonly CancellationToken cancellationToken;
+
+		public EndPoint GetEndPoint => client.Client.RemoteEndPoint;
 
 		internal WebSocketConnection(Server server, Handler handler, TcpClient client, NetworkStream stream, StreamReader reader, StreamWriter writer)
 		{
