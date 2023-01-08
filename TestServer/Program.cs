@@ -12,9 +12,9 @@ Console.ReadLine();
 
 class MessagePrinterHandler : Handler
 {
-	public override Task HandleAsync(WebSocketConnection _, string message)
+	public override async Task HandleAsync(WebSocketConnection connection, string message)
 	{
 		LogInfo(message);
-		return Task.CompletedTask;
+		await connection.Send($"Thanks for the message of {message.Length} characters!");
 	}
 }
