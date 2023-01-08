@@ -90,7 +90,8 @@ namespace WebSocketsNET.Protocols.SEP
 				{
 					ParameterInfo? payloadParameter = null;
 					ParameterInfo? idParameter = null;
-					int payloadIndex, idIndex;
+					int payloadIndex = 0;
+					int idIndex = 0;
 
 					for(int i = 0; i < parameters.Length; i++)
 					{
@@ -116,7 +117,7 @@ namespace WebSocketsNET.Protocols.SEP
 
 					if (parameters.Length == 1)
 					{
-						Func<string, object[]>? parameterCreator = null;
+						Func<string?, string, object[]>? parameterCreator = null;
 
 						// Id
 						if(idParameter != null)
@@ -124,7 +125,7 @@ namespace WebSocketsNET.Protocols.SEP
 							if (!CreateIdParser(idParameter.ParameterType, out var idMapper) || idMapper == null)
 								throw new ArgumentException($"'{GetType().Name}.{method.Name}()' has an id parameter with unexpected type, expected a string, any integer type, or GUID");
 							
-							parameterCreator = x => new[] { idMapper(x) }; 
+							parameterCreator = (_, id) => new[] { idMapper(id) }; 
 
 							if (isAsync)
 							{
@@ -135,7 +136,7 @@ namespace WebSocketsNET.Protocols.SEP
 							{
 								handler.handler = (string? id, string? type, string? payload) =>
 								{
-									method.Invoke(this, parameterCreator(id));
+									method.Invoke(this, parameterCreator(null, id!));
 									return Task.CompletedTask;
 								};
 							}
@@ -144,7 +145,7 @@ namespace WebSocketsNET.Protocols.SEP
 						else if(payloadParameter != null)
 						{
 							var payloadParser = CreatePayloadParser(payloadParameter.ParameterType);
-							parameterCreator = x => new[] { payloadParser(x) }; 
+							parameterCreator = (type, payload) => new[] { payloadParser(type, payload) }; 
 
 							if (isAsync)
 							{
@@ -155,14 +156,23 @@ namespace WebSocketsNET.Protocols.SEP
 							{
 								handler.handler = (string? id, string? type, string? payload) =>
 								{
-									method.Invoke(this, new[] { payload });
+									method.Invoke(this, parameterCreator(type, payload!));
 									return Task.CompletedTask;
 								};
 							}
 						}
 					}
+					// ID & Payload
 					else
 					{
+						Func<string, string?, string, object[]>? parameterCreator = null;
+						if (!CreateIdParser(idParameter.ParameterType, out var idParser) || idParser == null)
+							throw new ArgumentException($"'{GetType().Name}.{method.Name}()' has an id parameter with unexpected type, expected a string, any integer type, or GUID");
+						var payloadParser = CreatePayloadParser(payloadParameter.ParameterType);
+
+						if(payloadIndex == 0) parameterCreator = (id, type, payload) => new[] { payloadParser(type, payload), idParser(id) };
+						else                  parameterCreator = (id, type, payload) => new[] { idParser(id), payloadParser(type, payload) };
+
 						throw new NotImplementedException("Simple end point paramaters");
 					}
 				}
@@ -186,28 +196,45 @@ namespace WebSocketsNET.Protocols.SEP
 			return func != null;
 		}
 
-		Func<string, object> CreatePayloadParser(Type type)
+		Func<string?, string, object> CreatePayloadParser(Type type)
 		{
-			if (type == typeof(string)) return x => x;
+			if (type == typeof(string)) return (_, x) => x;
 			else if (type.IsValueType)
 			{
-				     if (type == typeof(long))   return x => long.Parse(x);
-				else if (type == typeof(ulong))  return x => ulong.Parse(x);
-				else if (type == typeof(int))    return x => int.Parse(x);
-				else if (type == typeof(uint))   return x => uint.Parse(x);
-				else if (type == typeof(short))  return x => short.Parse(x);
-				else if (type == typeof(ushort)) return x => ushort.Parse(x);
-				else if (type == typeof(sbyte))  return x => sbyte.Parse(x);
-				else if (type == typeof(byte))   return x => byte.Parse(x);
-				else if (type == typeof(Guid))   return x => Guid.Parse(x);
-				else if (type == typeof(bool))   return x => bool.Parse(x);
+				     if (type == typeof(long))   return (_, x) => long.Parse(x);
+				else if (type == typeof(ulong))  return (_, x) => ulong.Parse(x);
+				else if (type == typeof(int))    return (_, x) => int.Parse(x);
+				else if (type == typeof(uint))   return (_, x) => uint.Parse(x);
+				else if (type == typeof(short))  return (_, x) => short.Parse(x);
+				else if (type == typeof(ushort)) return (_, x) => ushort.Parse(x);
+				else if (type == typeof(sbyte))  return (_, x) => sbyte.Parse(x);
+				else if (type == typeof(byte))   return (_, x) => byte.Parse(x);
+				else if (type == typeof(Guid))   return (_, x) => Guid.Parse(x);
+				else if (type == typeof(bool))   return (_, x) => bool.Parse(x);
 				else throw new NotImplementedException("No body parser for value type " + type.Name);
 			}
 			else
 			{
-				throw new NotImplementedException("No body parser for classes exist yet");
+				return (typeString, payload) =>
+				{
+					switch (typeString)
+					{
+						case "csv":  return DeserializeCSV(type, payload);
+						case "json": return DeserializeJson(type, payload);
+						case "xml":  return DeserializeXML(type, payload);
+						default: throw new HandlerException("415 Unsupported Media Type", $"{typeString} is not supported");
+					}
+				};
 			}
 		}
+
+
+		protected virtual object DeserializeCSV(Type type,  string csv)  => throw new HandlerException("415 Unsupported Media Type", "CSV is not supported");
+		protected virtual object DeserializeJson(Type type, string json) => throw new HandlerException("415 Unsupported Media Type", "JSON is not supported");
+		protected virtual object DeserializeXML(Type type,  string xml)  => throw new HandlerException("415 Unsupported Media Type", "XML is not supported");
+
+
+
 
 		public sealed override void OnConnect(WebSocketConnection connection)
 		{
@@ -238,8 +265,8 @@ namespace WebSocketsNET.Protocols.SEP
 			var header = payloadIndex < 0 ? message : message.Substring(0, payloadIndex);
 
 			var idIndex = header.IndexOf(':');
-			if (idIndex == 0)                throw new HandlerException($"400 Bad Request\nExpected a URL before the ID separator");
-			if(idIndex + 1 >= header.Length) throw new HandlerException($"400 Bad Request\nExpected an ID after the ID separator");
+			if (idIndex == 0)                throw new HandlerException("400 Bad Request", "Expected a URL before the ID separator");
+			if(idIndex + 1 >= header.Length) throw new HandlerException("400 Bad Request", "Expected an ID after the ID separator");
 
 			var url = idIndex < 0 ? header : header.Substring(0, idIndex);
 			var id = idIndex < 0 ? null : header.Substring(idIndex+1);
@@ -250,38 +277,51 @@ namespace WebSocketsNET.Protocols.SEP
 				url = url.Substring(typeIndex+1);
 
 			if (url.Any(x => !char.IsLetterOrDigit(x) && x != '_' && x != '-'))
-				throw new HandlerException($"400 Bad Request: {url}\nThe URL contains invalid characters");
+				throw new HandlerException("400 Bad Request", url, "The URL contains invalid characters");
 
 			if(!endPoints.TryGetValue(url, out var handler))
-				throw new HandlerException($"404 Not Found: {url}");
+				throw new HandlerException("404 Not Found", url, $"No end point called '{url}' exists");
 
 			// Handler validation
 			if(type != null && handler.payloadIsValueType)
-				throw new HandlerException($"400 Bad Request: {url}\nThe type '{type}' is specified but '{url}' only accepts raw values");
+				throw new HandlerException("400 Bad Request", url, $"The type '{type}' is specified but '{url}' only accepts raw values");
 
-			if (id == null && handler.id)  throw new HandlerException($"400 Bad Request: {url}\nExpected id");
-			if (id != null && !handler.id) throw new HandlerException($"400 Bad Request: {url}\nIds not supported");
+			if (id == null && handler.id)  throw new HandlerException("400 Bad Request", url, "Expected id");
+			if (id != null && !handler.id) throw new HandlerException("400 Bad Request", url, "Ids not supported");
 
 			// Request without payload
 			if (payloadIndex < 0)
 			{
 				// LogInfo($"Request: {url} {(id != null ? $"[{id}]" : "")}");
 
-				if(handler.payload) throw new HandlerException($"400 Bad Request: {url}\nExpected payload");
-				handler.handler!(id, null, null);
+				if(handler.payload) throw new HandlerException("400 Bad Request", url, "Expected payload");
+
+				try{ handler.handler!(id, null, null); }
+				catch (HandlerException e)
+				{
+					e.url = url;
+					throw e;
+				}
 			}
 			// Request with payload
 			else
 			{
 				// LogInfo($"Request: {url} {(id != null ? $"[{id}]" : "")}\n{payload}");
 
-				if (!handler.payload) throw new HandlerException($"400 Bad Request: {url}\nPayloads not supported");
+				if (!handler.payload) throw new HandlerException("400 Bad Request", url, "Payloads not supported");
+				if(!handler.payloadIsValueType && type == null) throw new HandlerException("400 Bad Request", url, "A payload type was expected");
 
 				payloadIndex++;
 				if (payloadIndex >= message.Length)
-					throw new HandlerException($"400 Bad Request: {url}\nEmpty payload");
+					throw new HandlerException("400 Bad Request", url, "Empty payload");
 				var payload = message.Substring(payloadIndex);
-				handler.handler!(id, type, payload);
+
+				try { handler.handler!(id, type, payload); }
+				catch (HandlerException e)
+				{
+					e.url = url;
+					throw e;
+				}
 			}
 
 			return Task.CompletedTask;

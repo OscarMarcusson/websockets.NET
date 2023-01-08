@@ -1,4 +1,5 @@
-﻿using WebSocketsNET;
+﻿using System.Text.Json;
+using WebSocketsNET;
 using WebSocketsNET.Protocols;
 using WebSocketsNET.Protocols.SEP;
 
@@ -27,8 +28,30 @@ class MessagePrinterHandler : Handler
 public class SimpleEndPointExample : SimpleEndPointHandler
 {
 	[Route("log")]
-	public void Log(/*string id*/string payload)
+	public void Log(/*string id*/Test payload)
 	{
-		LogInfo($"You said: {payload}");
+		LogInfo($"You said: {payload.Value}");
 	}
+
+
+	static readonly JsonSerializerOptions jsonSerializerOptions = new JsonSerializerOptions { IncludeFields = true };
+	protected override object DeserializeJson(Type type, string json)
+	{
+		try
+		{
+			var parsedJson = JsonSerializer.Deserialize(json, type, jsonSerializerOptions);
+			if (parsedJson == null)
+				throw new HandlerException("500 Internal Server Exception", "Could not parse JSON data");
+			return parsedJson;
+		}
+		catch (Exception e)
+		{
+			throw new HandlerException("500 Internal Server Exception", $"Could not parse JSON data: {e.Message}");
+		}
+	}
+}
+
+public class Test
+{
+	public string Value = "";
 }
