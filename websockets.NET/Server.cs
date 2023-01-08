@@ -4,6 +4,10 @@ using System.Net;
 using System.Threading.Tasks;
 using System.IO;
 using System.Text;
+using System.Collections.Generic;
+using System.Linq;
+using WebSocketsNET.Protocols;
+using WebSocketsNET.Protocols.SEP;
 
 namespace WebSocketsNET
 {
@@ -16,6 +20,9 @@ namespace WebSocketsNET
 
 		Handler? rootHandler;
 		public Handler? GetRootHandler => rootHandler;
+
+		readonly Dictionary<string, Handler> handlers = new Dictionary<string, Handler>();
+		public bool TryGetHandler(string url, out Handler? handler) => handlers.TryGetValue(url, out handler);
 
 
 
@@ -50,13 +57,25 @@ namespace WebSocketsNET
 
 		public Server AddHandler<THandler>(string url) where THandler : Handler, new()
 		{
+			if (typeof(THandler) == typeof(SimpleEndPointHandler))
+				throw new ArgumentException($"Invalid handler type, can't use the base '{typeof(SimpleEndPointHandler).Name}' type. Please use a class that inherits from it");
+
+			if (typeof(THandler) == typeof(Handler))
+				throw new ArgumentException($"Invalid handler type, can't use the base '{typeof(Handler).Name}' type. Please use a class that inherits from it");
+
 			url = url.Trim(' ', '\t', '\\', '/');
 			if (url.Length == 0)
 				throw new ArgumentException("Empty url");
 
+			if (url.Any(x => !char.IsLetterOrDigit(x) && x != '_' && x != '-'))
+				throw new ArgumentException($"Invalid characters found in url '{url}'");
+
+			if (handlers.ContainsKey(url))
+				throw new ArgumentException($"'{url}' is already defined");
+
 			LogInfo($"Added handler '{url}'");
 			var handler = new THandler() { server = this };
-			// TODO:: 
+			handlers[url] = handler;
 			return this;
 		}
 

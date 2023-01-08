@@ -1,7 +1,10 @@
 ﻿using WebSocketsNET;
+using WebSocketsNET.Protocols;
+using WebSocketsNET.Protocols.SEP;
 
 using var server = new Server("localhost", 11311)
 	.AddRootHandler<MessagePrinterHandler>()
+	.AddHandler<SimpleEndPointExample>("sep")
 	.Start()
 	;
 
@@ -17,5 +20,15 @@ class MessagePrinterHandler : Handler
 		LogInfo(message);
 		await connection.Send($"Thanks for the message of {message.Length} characters!");
 		await Broadcast(connection, $"'{connection.GetEndPoint}' said: {message}");
+	}
+}
+
+
+public class SimpleEndPointExample : SimpleEndPointHandler
+{
+	[Route("log")]
+	public void Log(/*string id*/string payload)
+	{
+		LogInfo($"You said: {payload}");
 	}
 }

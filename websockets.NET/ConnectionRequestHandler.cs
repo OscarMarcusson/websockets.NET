@@ -49,7 +49,8 @@ namespace WebSocketsNET
 				}
 				else
 				{
-					throw new Exception($"Invalid request, '{client.Client.RemoteEndPoint}' tried calling a handler called '{url}'");
+					if(!server.TryGetHandler(url, out handler))
+						throw new Exception($"Invalid request, '{client.Client.RemoteEndPoint}' tried calling a handler called '{url}'");
 				}
 
 

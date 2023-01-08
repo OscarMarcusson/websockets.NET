@@ -122,6 +122,10 @@ namespace WebSocketsNET
 					await handler.HandleAsync(this, text);
 				}
 			}
+			catch(HandlerException handlerException)
+			{
+				server.LogError(handlerException.Message);
+			}
 			catch(Exception e)
 			{
 				server.LogError($"Unhandled exception, killing connection for '{client.Client.RemoteEndPoint}'\n{e}");
