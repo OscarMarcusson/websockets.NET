@@ -63,7 +63,7 @@ namespace WebSocketsNET
 						break;
 					}
 
-					int opcode = bytes[0] & 0b00001111; // 1: text message
+					int opcode = bytes[0] & 0b00001111; // 0: continuation frame, 1: text message, 2: binary, 9: ping, 10: pong
 					if (opcode == 8) // End of stream
 						break;
 
@@ -127,6 +127,42 @@ namespace WebSocketsNET
 			cancellation.Cancel();
 			Dispose();
 		}
+
+
+		public async Task Send(string message)
+		{
+			var frameLength = 2;
+			var messageBytes = Encoding.UTF8.GetBytes(message);
+
+			if (messageBytes.Length >= 126)
+			{
+				if (messageBytes.Length < ushort.MaxValue) frameLength = 4;
+				else frameLength = 10;
+			}
+
+			var totalMessageLength = frameLength + 4 + messageBytes.Length;
+			var bytes = new byte[totalMessageLength];
+
+			// Fin && OP code
+			bytes[0] = 0b10000000 | (2 & 0x0F);
+
+			// Frame length
+			switch (frameLength)
+			{
+				case 10: bytes[1] = 127; break; // TODO:: Encode bits 2 & 3
+				case 4: bytes[1] = 126; break; // TODO:: Encode all the way up
+				default: bytes[1] = (byte)messageBytes.Length; break;
+			}
+
+			// Message
+			var offset = frameLength; // + 4;
+			for (var i = 0l; i < messageBytes.LongLength; ++i)
+				bytes[i + offset] = (byte)(messageBytes[i]);
+
+			await stream.WriteAsync(bytes, cancellationToken);
+		}
+
+
 
 		public void Dispose()
 		{
