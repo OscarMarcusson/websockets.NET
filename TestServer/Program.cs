@@ -32,6 +32,12 @@ public class SimpleEndPointExample : SimpleEndPointHandler
 	{
 		LogInfo($"You said: {payload.Value}");
 	}
+
+	[Route("log/id")]
+	public void Log(string id, Test payload)
+	{
+		LogInfo($"{id} said: {payload.Value}");
+	}
 }
 
 public class Test

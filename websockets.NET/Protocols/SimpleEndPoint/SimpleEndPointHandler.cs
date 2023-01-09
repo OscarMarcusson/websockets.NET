@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.Common;
 using System.Linq;
 using System.Reflection;
@@ -54,7 +55,7 @@ namespace WebSocketsNET.Protocols.SEP
 				if(string.IsNullOrWhiteSpace(endPointData.url))
 					throw new ArgumentException($"'{GetType().Name}.{method.Name}()' has an empty URL");
 
-				if (endPointData.url.Any(x => !char.IsLetterOrDigit(x) && x != '-' && x != '_'))
+				if (!SimpleEndPoint.Utils.ValidateUrl(endPointData.url))
 					throw new ArgumentException($"'{GetType().Name}.{method.Name}()' has an invalid URL: '{endPointData.url}'");
 
 				if (endPoints.ContainsKey(endPointData.url))
@@ -166,14 +167,26 @@ namespace WebSocketsNET.Protocols.SEP
 					else
 					{
 						Func<string, string?, string, object[]>? parameterCreator = null;
-						if (!CreateIdParser(idParameter.ParameterType, out var idParser) || idParser == null)
+						if (!CreateIdParser(idParameter!.ParameterType, out var idParser) || idParser == null)
 							throw new ArgumentException($"'{GetType().Name}.{method.Name}()' has an id parameter with unexpected type, expected a string, any integer type, or GUID");
-						var payloadParser = CreatePayloadParser(payloadParameter.ParameterType);
+						var payloadParser = CreatePayloadParser(payloadParameter!.ParameterType);
 
 						if(payloadIndex == 0) parameterCreator = (id, type, payload) => new[] { payloadParser(type, payload), idParser(id) };
 						else                  parameterCreator = (id, type, payload) => new[] { idParser(id), payloadParser(type, payload) };
 
-						throw new NotImplementedException("Simple end point paramaters");
+						if (isAsync)
+						{
+							// handler.handler = async (string? id, string? payload) => { };
+							throw new NotImplementedException();
+						}
+						else
+						{
+							handler.handler = (string? id, string? type, string? payload) =>
+							{
+								method.Invoke(this, parameterCreator(id!, type, payload!));
+								return Task.CompletedTask;
+							};
+						}
 					}
 				}
 			}
@@ -278,7 +291,7 @@ namespace WebSocketsNET.Protocols.SEP
 			if (typeIndex > -1)
 				url = url.Substring(typeIndex+1);
 
-			if (url.Any(x => !char.IsLetterOrDigit(x) && x != '_' && x != '-'))
+			if (!SimpleEndPoint.Utils.ValidateUrl(url))
 				throw new HandlerException("400 Bad Request", url, "The URL contains invalid characters");
 
 			if(!endPoints.TryGetValue(url, out var handler))
