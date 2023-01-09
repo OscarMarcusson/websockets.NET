@@ -2,10 +2,10 @@
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Linq;
-using System.Net.NetworkInformation;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using TinyJson;
 
 namespace WebSocketsNET.Protocols.SEP
 {
@@ -230,7 +230,9 @@ namespace WebSocketsNET.Protocols.SEP
 
 
 		protected virtual object DeserializeCSV(Type type,  string csv)  => throw new HandlerException("415 Unsupported Media Type", "CSV is not supported");
-		protected virtual object DeserializeJson(Type type, string json) => throw new HandlerException("415 Unsupported Media Type", "JSON is not supported");
+
+		protected virtual object DeserializeJson(Type type, string json) => JSON.Parse(type, json);
+		
 		protected virtual object DeserializeXML(Type type,  string xml)  => throw new HandlerException("415 Unsupported Media Type", "XML is not supported");
 
 

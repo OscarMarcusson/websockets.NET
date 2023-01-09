@@ -28,26 +28,9 @@ class MessagePrinterHandler : Handler
 public class SimpleEndPointExample : SimpleEndPointHandler
 {
 	[Route("log")]
-	public void Log(/*string id*/Test payload)
+	public void Log(Test payload)
 	{
 		LogInfo($"You said: {payload.Value}");
-	}
-
-
-	static readonly JsonSerializerOptions jsonSerializerOptions = new JsonSerializerOptions { IncludeFields = true };
-	protected override object DeserializeJson(Type type, string json)
-	{
-		try
-		{
-			var parsedJson = JsonSerializer.Deserialize(json, type, jsonSerializerOptions);
-			if (parsedJson == null)
-				throw new HandlerException("500 Internal Server Exception", "Could not parse JSON data");
-			return parsedJson;
-		}
-		catch (Exception e)
-		{
-			throw new HandlerException("500 Internal Server Exception", $"Could not parse JSON data: {e.Message}");
-		}
 	}
 }
 
