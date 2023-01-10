@@ -1,0 +1,193 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+	<title>Simple End Point Websocket Test</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="author" content="Oscar Marcusson">
+	<style>
+		* {
+			outline: none;
+			border: none;
+			position: relative;
+			box-sizing: border-box;
+			font-family: monospace;
+		}
+
+		html, body {
+			display: block;
+			position: fixed;
+			left: 0;
+			top: 0;
+			right: 0;
+			bottom: 0;
+			margin: 0;
+			padding: 1em;
+			background-color: #111112;
+			color: white;
+			font-size: 14px;
+		}
+
+		input, textarea, select, button, #output {
+			margin: 3px;
+			border-radius: 3px;
+			padding: 12px;
+			color: #d8d3cc;
+			background-color: #292b2e;
+			box-shadow: 0 3px 7px rgba(0,0,0,0.4);
+		}
+
+			button:hover, button:focus {
+				color: #fff7ed;
+				background-color: #313438;
+			}
+
+			button:active, button:active {
+				color: #8f8b87;
+				background-color: #1a1c1e;
+			}
+
+			input:disabled, textarea:disabled, select:disabled, button:disabled, #output:disabled {
+				color: #a9a6a1;
+				background-color: #1c1d1f;
+			}
+
+		button {
+			border-radius: 5px;
+		}
+
+		.input {
+			max-width: 700px;
+			margin: auto;
+			display: flex;
+			flex-direction: column;
+			height: 100%;
+		}
+
+		.header {
+			display: flex;
+			flex-direction: row;
+		}
+
+		#url {
+			min-width: 5px;
+			flex-grow: 10;
+		}
+
+		#id {
+			width: 15%;
+			min-width: 20px;
+		}
+
+		textarea {
+			vertical-align: bottom;
+			resize: vertical;
+		}
+
+		#output {
+			overflow: auto;
+			flex-grow: 1;
+			margin-top: 1em;
+			flex-shrink: 1;
+		}
+
+			#output > p {
+				overflow-wrap: break-word;
+			}
+
+			#output span {
+				color: blue;
+			}
+
+				#output span.error {
+					color: red;
+				}
+	</style>
+</head>
+<body>
+	<div class="input">
+		<div class="header">
+			<select onchange="OnChangeType();" id="type">
+				<option></option>
+				<option>Raw</option>
+				<option>CSV</option>
+				<option>Json</option>
+				<option>XML</option>
+			</select>
+			<input type="text" id="url" placeholder="URL" required>
+			<input type="text" id="id" placeholder="ID">
+		</div>
+		<textarea cols="60" rows="6" id="body" disabled></textarea>
+		<button onclick="onClickButton();">send</button>
+		<div id="output"></div>
+	</div>
+	<script>
+		// http://www.websocket.org/echo.html
+		const type = document.querySelector("#type");
+		const url = document.querySelector("#url");
+		const id = document.querySelector("#id");
+		const textarea = document.querySelector("#body");
+		const button = document.querySelector("button");
+		const output = document.querySelector("#output");
+		const wsUri = "ws://127.0.0.1:11311/sep";
+		const websocket = new WebSocket(wsUri);
+
+		websocket.onopen = (e) => {
+			writeToScreen("CONNECTED");
+		};
+
+		websocket.onclose = (e) => {
+			writeToScreen("DISCONNECTED");
+		};
+
+		websocket.onmessage = (e) => {
+			if (e.data instanceof Blob) {
+				reader = new FileReader();
+
+				reader.onload = () => {
+					writeToScreen(`<span>RESPONSE: ${reader.result}</span>`);
+				};
+
+				reader.readAsText(e.data);
+			} else {
+				writeToScreen(`<span>RESPONSE: ${e.data}</span>`);
+			}
+		};
+
+		websocket.onerror = (e) => {
+			writeToScreen(`<span class="error">ERROR:</span> ${e.data}`);
+		};
+
+		function doSend(message) {
+			writeToScreen(`SENT: ${message}`);
+			websocket.send(message);
+		}
+
+		function writeToScreen(message) {
+			output.insertAdjacentHTML("afterbegin", `<p>${message}</p>`);
+		}
+
+		function onClickButton() {
+			let text = (type.value == '' || type.value == 'Raw')
+				? ''
+				: `${String(type.value).toLowerCase()} `
+				;
+
+			text = text + url.value;
+			if (id.value)
+				text += `:${id.value}`;
+
+			if (!textarea.disabled)
+				text += '\n' + textarea.value;
+
+			doSend(text);
+		}
+
+
+		function OnChangeType() {
+			textarea.disabled = type.value == '';
+			textarea.placeholder = textarea.disabled ? '' : `${type.value} payload`;
+		}
+	</script>
+</body>
+</html>
